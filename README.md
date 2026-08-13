@@ -157,3 +157,36 @@ triggers `lefthook install`, so only run it after `git init`, not before.
 installed by default — not every team wants it. To add it: `pnpm add -D @commitlint/cli
 @commitlint/config-conventional`, add a `commitlint.config.js` extending
 `@commitlint/config-conventional`, and wire a `commit-msg` job in `lefthook.yml`.
+
+## CI/CD
+
+`.github/workflows/ci.yml` — `lint`, `typecheck`, and `test` run in parallel; `build` runs once
+those three pass (caches `.next/cache` keyed on the lockfile + `src/`); `e2e` runs after `build`,
+rebuilds (cache-assisted) and runs Playwright against the production `output: standalone` server,
+uploading the HTML report as an artifact on failure. Provider-agnostic in spirit — porting to
+GitLab CI or Azure DevOps means translating the same 5 jobs and the pnpm/Node caching step; both
+have first-party pnpm+Node cache actions/templates, no fundamental blocker either way.
+
+## Docker
+
+3-stage `Dockerfile` (`deps` → `builder` → `runner`), `node:20-alpine`, `output: "standalone"` in
+`next.config.ts`. `pnpm build` auto-copies `public/` and `.next/static` into `.next/standalone`
+via a `postbuild` script, so `node .next/standalone/server.js` (the `start` script) and the Docker
+image both boot the same way — **not** `next start`, which doesn't work once `output: "standalone"`
+is set.
+
+```bash
+docker build -t nextjs-frontend-boilerplate .
+docker run -p 3000:3000 nextjs-frontend-boilerplate
+```
+
+`docker-compose.yml` runs the app alone by default; DB/Redis services are stubbed out in comments,
+ready to uncomment once those registry modules are pulled in.
+
+Note: `next/font/google` fetches font files at build time, so both CI and Docker builds need
+network access during `pnpm build` — no way around this without switching to local/self-hosted
+fonts.
+
+**Package manager pin**: `packageManager` is pinned to `pnpm@10.x`, not the newest pnpm major —
+pnpm 11 requires Node 22.13+, and this repo's baseline is Node 20 (`.nvmrc`, Dockerfile base
+image). If you bump `.nvmrc`/Dockerfile to Node 22+, pnpm 11 becomes usable again.
