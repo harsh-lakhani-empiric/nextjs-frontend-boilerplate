@@ -1,0 +1,159 @@
+# nextjs-frontend-boilerplate
+
+Frontend-only Next.js starter — App Router, TypeScript, Turbopack. Assumes zero backend
+ownership: the backend can be a separate Node/Express service, a third-party API, or another
+team's service.
+
+This is one piece of a 3-part boilerplate system:
+
+1. **This repo (Starter Repo A)** — frontend-only baseline. No UI components, no forms setup,
+   no optional modules pre-installed.
+2. **Starter Repo B** (`nextjs-fullstack-boilerplate`) — everything here, plus Next.js's own
+   Route Handlers/Server Actions used as the backend.
+3. **Component & Module Registry + Docs** (`nextjs/registry`, `nextjs/docs`) — every UI
+   primitive, form setup, and optional infra module (auth, db, i18n, storage, email, analytics,
+   monitoring, payments, redis) lives there, pulled à la carte via
+   `pnpm dlx shadcn add <item>` against a custom `registry.json`. Docs site explains exact
+   install steps per item. — _link: TBD_
+
+`components/ui/` in this repo starts empty on purpose — it's the landing spot for registry
+pulls, not a place to hand-write primitives.
+
+## Setup
+
+```bash
+pnpm install
+cp .env.example .env.local   # fill in real values
+pnpm dev
+```
+
+Node version is pinned in `.nvmrc` (20.18.0+). Package manager is pnpm (documented/tested
+default — npm works too via the registry CLI's auto-detect, just isn't the verified path here).
+
+## Scripts
+
+| Script | Purpose |
+|---|---|
+| `pnpm dev` | Start dev server (Turbopack) |
+| `pnpm build` | Production build |
+| `pnpm start` | Serve production build |
+| `pnpm lint` | ESLint |
+| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm test` | Unit tests (Vitest — wired in a later step) |
+| `pnpm test:e2e` | E2E tests (Playwright — wired in a later step) |
+
+## Environment variables
+
+Validated at runtime via `src/lib/env.ts` (Zod) — the app fails loud at boot if a required var
+is missing or malformed. See `.env.example` for the full list; `NEXT_PUBLIC_*` vars are exposed
+to the browser, everything else is server-only.
+
+## Folder structure
+
+```
+src/
+  app/               # routes
+  components/ui/     # empty — registry pulls land here
+  components/shared/ # hand-written, app-specific components
+  lib/                # api-client, utils, env, dal
+  hooks/
+  types/
+  config/
+```
+
+## Backend compatibility
+
+No backend tech is dictated, but connecting to whatever backend you have is documented:
+
+- **Direct client fetch** — simplest; backend must allow CORS (with credentials if using
+  cookies).
+- **Proxy via Route Handler** — a couple of thin pass-through Route Handlers can hide the real
+  backend URL from the browser and sidestep CORS (same-origin from the browser's view). Infra
+  glue, not business logic.
+- **Auth** — if the backend owns login/sessions, pull the `external-auth-adapter` registry item
+  (cookie-based or token-based variant) instead of a full auth module.
+
+CORS/cookie configuration (`Access-Control-Allow-Origin`, `Allow-Credentials`, cookie
+`SameSite`/`Secure`) is a backend-side requirement — this repo can't solve it from the frontend
+alone.
+
+## Error handling
+
+- `app/error.tsx` / `app/global-error.tsx` — route-level and root-layout error boundaries.
+- `app/not-found.tsx`, `app/loading.tsx` — 404 and Suspense fallback.
+- `lib/errors.ts` — typed `AppError`/`ValidationError`/`ApiError` classes plus
+  `toErrorResponse()`, a mapper for Route Handlers/Server Actions to turn thrown errors into a
+  consistent response shape.
+- `lib/logger.ts` — console-backed logger with a swappable sink (`setLogSink`) so a Sentry sink
+  (registry module, step 18) can be plugged in later without touching call sites.
+
+## Security
+
+- `proxy.ts` — Next 16 native CSP nonce support. A fresh nonce is generated per request, set on
+  the `Content-Security-Policy` header, and auto-injected into framework/page scripts and any
+  `<Script nonce>`. No third-party CSP library used.
+- **Tradeoff**: nonce-based CSP requires dynamic rendering for any page that needs the nonce
+  applied (see `connection()` in Next's docs) — this disables ISR/PPR and CDN caching for those
+  pages. For static-heavy apps that can't afford that, the alternative is Next's experimental
+  Subresource Integrity (SRI) mode (`experimental.sri.algorithm` in `next.config.ts`), which
+  keeps static generation intact by hashing script files at build time instead of using nonces.
+  Not implemented here — pick one based on how much of the app needs to stay static.
+- `lib/cookies.ts` — cookie helpers defaulting to `httpOnly: true`, `secure` in production,
+  `sameSite: "lax"`.
+- `.github/dependabot.yml` — zero-config weekly dependency updates (npm + GitHub Actions). Swap
+  for [Renovate](https://docs.renovatebot.com/) if you need custom scheduling/grouping.
+
+## UI config
+
+Tailwind v4 (CSS-first, `@theme` in `src/app/globals.css`) and `lib/utils.ts`'s `cn()` helper are
+set up, but **no components are installed** — `components/ui/` stays empty on purpose. This repo
+is pre-configured for shadcn/Base-UI-style components; pull the actual components from the
+registry repo:
+
+```bash
+pnpm dlx shadcn add <name> --registry <registry-url>
+```
+
+(Registry repo built in steps 09-21 of the build sequence.)
+
+## SEO
+
+- `app/sitemap.ts`, `app/robots.ts`, `app/manifest.json` — working templates, driven by
+  `config/site.ts`.
+- `lib/metadata.ts` — `buildMetadata()` builds a consistent `Metadata` object (title, description,
+  canonical, Open Graph, Twitter card) so pages don't hand-roll each field. Root layout sets the
+  title template (`%s | ${siteConfig.name}`); pages just pass a `title`. Note: Next.js doesn't
+  apply a layout's title template to a page in the *same* route segment — see `app/about/page.tsx`
+  for a working example (`app/page.tsx` shows the untemplated case, since it shares the root
+  segment with the layout).
+- `app/opengraph-image.tsx` — generated OG image example via `next/og`.
+
+## Testing
+
+- **Vitest + React Testing Library** — unit/component tests. Config in `vitest.config.mts`,
+  examples in `__tests__/` (`utils.test.ts` for a plain function, `not-found.test.tsx` for a
+  synchronous component). Vitest can't render `async` Server Components — that's what Playwright
+  is for.
+- **Playwright** — E2E, default tier (not optional) since it's the only way to cover `async`
+  Server Components. Config in `playwright.config.ts`, example in `e2e/smoke.spec.ts`. Starts its
+  own dev server against `pnpm dev`.
+
+```bash
+pnpm test        # vitest
+pnpm test:e2e    # playwright (needs browsers: pnpm exec playwright install)
+```
+
+## Code quality / git hooks
+
+**Lefthook** (not Husky) wires a pre-commit hook — `lefthook.yml` runs ESLint (`--fix`), Prettier
+(`--write`), and a full `typecheck` on staged files, re-staging anything auto-fixed. Hooks activate
+the first time you run `pnpm install` inside a git repo (lefthook's own postinstall runs
+`lefthook install`) — this repo ships with no `.git` on purpose, so hooks aren't active until you
+`git init` it yourself. pnpm blocks lefthook's postinstall script by default (supply-chain
+guard) — run `pnpm approve-builds lefthook` once to allow it; that's also the exact command that
+triggers `lefthook install`, so only run it after `git init`, not before.
+
+[Commitlint](https://commitlint.js.org/) (conventional commit message enforcement) is **not**
+installed by default — not every team wants it. To add it: `pnpm add -D @commitlint/cli
+@commitlint/config-conventional`, add a `commitlint.config.js` extending
+`@commitlint/config-conventional`, and wire a `commit-msg` job in `lefthook.yml`.
