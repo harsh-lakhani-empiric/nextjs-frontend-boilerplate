@@ -61,7 +61,33 @@ src/
   config/
 ```
 
-## Backend compatibility
+## Backend compatibility (implementation)
+
+- `lib/api-client.ts` — `apiFetch<T>()`, a typed fetch wrapper. Base URL comes from `API_URL`
+  (server-only, preferred server-side) or `NEXT_PUBLIC_API_URL` (browser-side, only option
+  client-side). Response types are dev-supplied (`T` defaults to `unknown`) — see the `TODO`
+  comment in the file for hand-writing vs. OpenAPI-codegen options.
+- `app/api/proxy/[...path]/route.ts` — **example-only** pass-through proxy (GET only), defaults to
+  `https://httpbin.org` for the step 07 smoke test. Replace `EXTERNAL_API_URL` with your real
+  backend, or delete the file if you're using direct client fetch instead.
+- `lib/auth/` — intentionally empty (`.gitkeep` only). This repo doesn't ship Better Auth (that's
+  Repo B, since it needs Next.js to own auth). Pull the registry's `external-auth-adapter` item
+  (cookie-based or token-based variant) into this folder once you know which one your backend
+  needs.
+- `BACKEND-REQUIREMENTS.md` at the repo root — hand this to whoever owns the backend: CORS
+  origins, credentials flag, cookie settings, base URL contract.
+
+### Two connection patterns
+
+1. **Direct client fetch** — simplest. Call `apiFetch()` (or plain `fetch`) straight from a
+   Client Component. Requires the backend to allow CORS (`Access-Control-Allow-Origin` for your
+   frontend origin, plus `Access-Control-Allow-Credentials` if using cookies).
+2. **Proxy via Route Handler** — call your own `/api/proxy/...` instead. The browser sees a
+   same-origin request (no CORS needed, cookies can use `SameSite=Lax`), and the real backend URL
+   never reaches the client. This is infra glue living in the frontend, not backend business
+   logic — see `app/api/proxy/[...path]/route.ts`.
+
+## Backend compatibility (architecture)
 
 No backend tech is dictated, but connecting to whatever backend you have is documented:
 
