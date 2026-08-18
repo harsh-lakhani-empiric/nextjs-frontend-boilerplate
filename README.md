@@ -137,8 +137,25 @@ is pre-configured for shadcn/Base-UI-style components; pull the actual component
 registry repo:
 
 ```bash
-pnpm dlx shadcn add <name> --registry <registry-url>
+pnpm dlx shadcn@latest add @boilerplate/button @boilerplate/input
 ```
+
+`components.json` holds the config that makes this work — path aliases, the Tailwind CSS entry
+point, and the `@boilerplate` registry namespace. Without it `shadcn add` fails before it starts,
+so don't delete it.
+
+It currently points at `http://localhost:3000/r/{name}.json`, i.e. the registry repo running
+locally (`pnpm dev` in `nextjs/registry`). **Swap that for the deployed registry URL once it
+ships** — either edit `components.json` directly or re-register the namespace:
+
+```bash
+pnpm dlx shadcn@latest registry add "@boilerplate=<registry-url>/r/{name}.json"
+```
+
+Pulled components land in `components/ui/` (and `components/forms/`, `lib/`) and are rethemed
+onto the OKLCH tokens in `globals.css` — change `--primary` there and every pulled component
+follows. Transitive registry dependencies resolve automatically: pulling `form-rhf-zod` also
+brings `form-field`, `button`, `input`, `label` and the rest.
 
 (Registry repo built in steps 09-21 of the build sequence.)
 
