@@ -5,10 +5,9 @@ import type { NextRequest } from "next/server";
  * CORS (the request looks same-origin to the client). Forwards GET only — add the other HTTP
  * methods the same way if you need them.
  *
- * Defaults to https://httpbin.org for the smoke test acceptance check in step 07 of the build
- * sequence (httpbin.org is occasionally flaky/down — https://httpbingo.org is an API-compatible
- * mirror if you need a live target to test against). Replace EXTERNAL_API_URL with your real
- * backend before shipping, and delete this comment block.
+ * Defaults to https://httpbin.org as a development example. httpbin.org is occasionally
+ * unavailable; https://httpbingo.org is an API-compatible mirror for local testing. Replace
+ * EXTERNAL_API_URL with your real backend before shipping, and delete this comment block.
  */
 const EXTERNAL_API_URL = process.env.API_URL ?? "https://httpbin.org";
 

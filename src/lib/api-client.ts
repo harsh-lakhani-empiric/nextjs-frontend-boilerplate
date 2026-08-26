@@ -12,8 +12,8 @@ function getBaseUrl(): string {
 
 // TODO: type this per your backend's contract. Response types below are `unknown` on purpose —
 // this client doesn't assume a shape. Either hand-write types per endpoint, or generate them
-// from your backend's OpenAPI spec (openapi-typescript + a typed fetch wrapper is the registry
-// pattern for this — see the `patterns/` registry item, step 21).
+// from your backend's OpenAPI spec. The registry's `api-client-typed` pattern provides one
+// openapi-typescript-based implementation.
 export async function apiFetch<T = unknown>(path: string, init?: RequestInit): Promise<T> {
   const url = `${getBaseUrl()}${path}`;
 

@@ -13,8 +13,9 @@ This is one piece of a 3-part boilerplate system:
 3. **Component & Module Registry + Docs** (`nextjs/registry`, `nextjs/docs`) — every UI
    primitive, form setup, and optional infra module (auth, db, i18n, storage, email, analytics,
    monitoring, payments, redis) lives there, pulled à la carte via
-   `pnpm dlx shadcn add <item>` against a custom `registry.json`. Docs site explains exact
-   install steps per item. — _link: TBD_
+   `pnpm dlx shadcn@latest add @boilerplate/<item>` against a custom `registry.json`. See the
+   [documentation](https://nextjs-docusauras-six.vercel.app/docs/getting-started/install-steps)
+   for exact installation steps.
 
 `components/ui/` in this repo starts empty on purpose — it's the landing spot for registry
 pulls, not a place to hand-write primitives.
@@ -38,9 +39,12 @@ default — npm works too via the registry CLI's auto-detect, just isn't the ver
 | `pnpm build` | Production build |
 | `pnpm start` | Serve production build |
 | `pnpm lint` | ESLint |
-| `pnpm typecheck` | `tsc --noEmit` |
-| `pnpm test` | Unit tests (Vitest — wired in a later step) |
-| `pnpm test:e2e` | E2E tests (Playwright — wired in a later step) |
+| `pnpm typecheck` | Generate Next.js route types, then run `tsc --noEmit` |
+| `pnpm test` | Unit tests (Vitest) |
+| `pnpm test:e2e` | E2E tests (Playwright) |
+
+`pnpm typecheck` is safe on a fresh clone: it generates the gitignored Next.js route helpers in
+`.next/types/` before TypeScript checks the project.
 
 ## Environment variables
 
@@ -68,7 +72,7 @@ src/
   client-side). Response types are dev-supplied (`T` defaults to `unknown`) — see the `TODO`
   comment in the file for hand-writing vs. OpenAPI-codegen options.
 - `app/api/proxy/[...path]/route.ts` — **example-only** pass-through proxy (GET only), defaults to
-  `https://httpbin.org` for the step 07 smoke test. Replace `EXTERNAL_API_URL` with your real
+  `https://httpbin.org` as a development endpoint. Replace `EXTERNAL_API_URL` with your real
   backend, or delete the file if you're using direct client fetch instead.
 - `lib/auth/` — intentionally empty (`.gitkeep` only). This repo doesn't ship Better Auth (that's
   Repo B, since it needs Next.js to own auth). Pull the registry's `external-auth-adapter` item
@@ -110,8 +114,8 @@ alone.
 - `lib/errors.ts` — typed `AppError`/`ValidationError`/`ApiError` classes plus
   `toErrorResponse()`, a mapper for Route Handlers/Server Actions to turn thrown errors into a
   consistent response shape.
-- `lib/logger.ts` — console-backed logger with a swappable sink (`setLogSink`) so a Sentry sink
-  (registry module, step 18) can be plugged in later without touching call sites.
+- `lib/logger.ts` — console-backed logger with a swappable sink (`setLogSink`) so the registry's
+  `sentry-monitoring` integration can be plugged in later without touching call sites.
 
 ## Security
 
@@ -133,31 +137,21 @@ alone.
 
 Tailwind v4 (CSS-first, `@theme` in `src/app/globals.css`) and `lib/utils.ts`'s `cn()` helper are
 set up, but **no components are installed** — `components/ui/` stays empty on purpose. This repo
-is pre-configured for shadcn/Base-UI-style components; pull the actual components from the
-registry repo:
+is already initialized for shadcn and configured to use the deployed registry. Do not run
+`shadcn init` or `shadcn registry add` in this starter; add the items you need directly:
 
 ```bash
 pnpm dlx shadcn@latest add @boilerplate/button @boilerplate/input
 ```
 
 `components.json` holds the config that makes this work — path aliases, the Tailwind CSS entry
-point, and the `@boilerplate` registry namespace. Without it `shadcn add` fails before it starts,
-so don't delete it.
-
-It currently points at `http://localhost:3000/r/{name}.json`, i.e. the registry repo running
-locally (`pnpm dev` in `nextjs/registry`). **Swap that for the deployed registry URL once it
-ships** — either edit `components.json` directly or re-register the namespace:
-
-```bash
-pnpm dlx shadcn@latest registry add "@boilerplate=<registry-url>/r/{name}.json"
-```
+point, and the deployed `@boilerplate` registry namespace. Keep it in the project because every
+future `shadcn add` command reads that file.
 
 Pulled components land in `components/ui/` (and `components/forms/`, `lib/`) and are rethemed
 onto the OKLCH tokens in `globals.css` — change `--primary` there and every pulled component
 follows. Transitive registry dependencies resolve automatically: pulling `form-rhf-zod` also
 brings `form-field`, `button`, `input`, `label` and the rest.
-
-(Registry repo built in steps 09-21 of the build sequence.)
 
 ## SEO
 
@@ -186,20 +180,10 @@ pnpm test        # vitest
 pnpm test:e2e    # playwright (needs browsers: pnpm exec playwright install)
 ```
 
-## Code quality / git hooks
+## Code quality
 
-**Lefthook** (not Husky) wires a pre-commit hook — `lefthook.yml` runs ESLint (`--fix`), Prettier
-(`--write`), and a full `typecheck` on staged files, re-staging anything auto-fixed. Hooks activate
-the first time you run `pnpm install` inside a git repo (lefthook's own postinstall runs
-`lefthook install`) — this repo ships with no `.git` on purpose, so hooks aren't active until you
-`git init` it yourself. pnpm blocks lefthook's postinstall script by default (supply-chain
-guard) — run `pnpm approve-builds lefthook` once to allow it; that's also the exact command that
-triggers `lefthook install`, so only run it after `git init`, not before.
-
-[Commitlint](https://commitlint.js.org/) (conventional commit message enforcement) is **not**
-installed by default — not every team wants it. To add it: `pnpm add -D @commitlint/cli
-@commitlint/config-conventional`, add a `commitlint.config.js` extending
-`@commitlint/config-conventional`, and wire a `commit-msg` job in `lefthook.yml`.
+No Git-hook manager is installed. Run `pnpm lint`, `pnpm typecheck`, and `pnpm test` explicitly
+before opening a pull request; CI runs the same checks for every change.
 
 ## CI/CD
 

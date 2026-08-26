@@ -19,6 +19,6 @@
     "hooks": "@/hooks"
   },
   "registries": {
-    "@boilerplate": "http://localhost:3000/r/{name}.json"
+    "@boilerplate": "https://nextjs-boilerplate-registry-chi.vercel.app/r/{name}.json"
   }
 }
