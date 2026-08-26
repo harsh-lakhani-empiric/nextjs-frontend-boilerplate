@@ -28,8 +28,9 @@ cp .env.example .env.local   # fill in real values
 pnpm dev
 ```
 
-Node version is pinned in `.nvmrc` (20.18.0+). Package manager is pnpm (documented/tested
-default — npm works too via the registry CLI's auto-detect, just isn't the verified path here).
+Node 24.19.0 is pinned in `.nvmrc`; `package.json` accepts supported Node 24 releases from 24.15.0
+onward. Package manager is pnpm (documented/tested default — npm works too via the registry CLI's
+auto-detect, just isn't the verified path here).
 
 ## Scripts
 
@@ -196,7 +197,7 @@ have first-party pnpm+Node cache actions/templates, no fundamental blocker eithe
 
 ## Docker
 
-3-stage `Dockerfile` (`deps` → `builder` → `runner`), `node:20-alpine`, `output: "standalone"` in
+3-stage `Dockerfile` (`deps` → `builder` → `runner`), `node:24-alpine`, `output: "standalone"` in
 `next.config.ts`. `pnpm build` auto-copies `public/` and `.next/static` into `.next/standalone`
 via a `postbuild` script, so `node .next/standalone/server.js` (the `start` script) and the Docker
 image both boot the same way — **not** `next start`, which doesn't work once `output: "standalone"`
@@ -214,6 +215,6 @@ Note: `next/font/google` fetches font files at build time, so both CI and Docker
 network access during `pnpm build` — no way around this without switching to local/self-hosted
 fonts.
 
-**Package manager pin**: `packageManager` is pinned to `pnpm@10.x`, not the newest pnpm major —
-pnpm 11 requires Node 22.13+, and this repo's baseline is Node 20 (`.nvmrc`, Dockerfile base
-image). If you bump `.nvmrc`/Dockerfile to Node 22+, pnpm 11 becomes usable again.
+**Package manager pin**: `packageManager` remains pinned to the tested `pnpm@10.x` release for
+reproducible local, CI, and deployment installs. Upgrade the package-manager major separately and
+regenerate the lockfile when that change is intentionally verified.
